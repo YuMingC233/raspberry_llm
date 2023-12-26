@@ -34,7 +34,7 @@ from signal import pause
 
 from pydub import AudioSegment
 
-from iat_ws_python3 import Ws_Param, on_message, on_error, on_close, on_open
+from iat_ws_python3_demo import Ws_Param, on_message, on_error, on_close, on_open
 
 """
 指令错误时的帮助说明
