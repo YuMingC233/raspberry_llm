@@ -9,8 +9,22 @@ import wave
 import getopt
 import alsaaudio
 
-def play(device, f):    
+"""
+指令错误时的帮助说明
+"""
 
+
+def usage():
+    print('usage: playwav.py [-d <device>] <file>', file=sys.stderr)
+    sys.exit(2)
+
+
+"""
+播放方法
+"""
+
+
+def play(device, f):
     print('%d channels, %d sampling rate\n' % (f.getnchannels(),
                                                f.getframerate()))
 
@@ -29,8 +43,9 @@ def play(device, f):
 
     periodsize = f.getframerate() // 8
 
-    device = alsaaudio.PCM(channels=f.getnchannels(), rate=f.getframerate(), format=format, periodsize=periodsize, device=device)
-    
+    device = alsaaudio.PCM(channels=f.getnchannels(), rate=f.getframerate(), format=format, periodsize=periodsize,
+                           device=device)
+
     data = f.readframes(periodsize)
     while data:
         # Read data from stdin
@@ -38,12 +53,7 @@ def play(device, f):
         data = f.readframes(periodsize)
 
 
-def usage():
-    print('usage: playwav.py [-d <device>] <file>', file=sys.stderr)
-    sys.exit(2)
-
 if __name__ == '__main__':
-
     device = 'default'
     opts, args = getopt.getopt(sys.argv[1:], 'd:')
     for o, a in opts:
@@ -52,7 +62,7 @@ if __name__ == '__main__':
 
     if not args:
         usage()
-        
+
     f = wave.open(args[0], 'rb')
 
     play(device, f)
