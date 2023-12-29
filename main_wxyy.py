@@ -210,9 +210,9 @@ def recoding():
     f.setsampwidth(2)  # PCM_FORMAT_S16_LE remains the same as it represents 16-bit sample width
     f.setframerate(16000)
 
-    print('%d channels, %d sampling rate\n' % (f.getnchannels(), f.getframerate()))
+    # print('%d channels, %d sampling rate\n' % (f.getnchannels(), f.getframerate()))
     print("请说话。")
-    # The period size controls the internal number of frames per period.
+    # The _period size_ controls the internal number of frames per period.
     # 周期大小控制每周期的内部帧数。
     # The significance of this parameter is documented in the ALSA api.
     # 这个参数的重要性在ALSA api文档中有说明。
@@ -226,7 +226,6 @@ def recoding():
     # 或者0字节的数据。后者是可能的，因为我们处于非阻塞
     # mode.
     # 模式。
-    inp.setperiodsize(160)
 
     while not recording_stopped:
         # Read data from device (设备读取数据)
@@ -294,21 +293,43 @@ def handle_long_press():
 def push_media():
     # 语音识别参数
     global wsParam
+
+
+
+
     time1 = datetime.now()
     wsParam = Ws_Param(APPID='518780c2', APISecret='ZGIyNjY4OTY4MDA5ZjQxMWFkY2M5OTAx',
                        APIKey='b0782afd1d08c6093ffa6205a400010f',
                        AudioFile=hash_filename)
     websocket.enableTrace(False)
     wsUrl = wsParam.create_url()
-    ws = websocket.WebSocketApp(wsUrl, on_message=on_message, on_error=on_error, on_close=on_close)
+    ws = websocket.WebSocketApp(wsUrl,on_message=on_message, on_error=on_error, on_close=on_close)
     ws.on_open = on_open
-    ws.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
+
+    # error: Only http, socks4, socks5 proxy protocols are supported
+    # 代理参数
+    ws.run_forever(
+        sslopt={"cert_reqs": ssl.CERT_NONE}
+    )
     time2 = datetime.now()
-    print(f"结果为：{over_result}")
-    print(time2 - time1)
+    # print(time2 - time1)
+
+
+"""
+将结果推送至Open AI的GPT-4-turbo接口中
+"""
+
+
+def push_to_gpt4turbo():
+    from openai import OpenAI
+    global over_result
+
+    client = OpenAI
 
 
 if __name__ == "__main__":
+
+
     # 停止录制标志
     global recording_stopped
     # 录制时自动生成的基于时间的哈希文件名称
@@ -332,5 +353,6 @@ if __name__ == "__main__":
     push_media()
     # 删除临时音频文件
     delete_temp_file()
+    print("正在将结果推送至大语言模型……")
 
     pause()
