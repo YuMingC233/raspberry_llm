@@ -1,15 +1,10 @@
-import requests
-
-proxies = {
-  'http': 'http://10.0.69.15:1234',
-  'https': 'http://10.0.69.15:1234',
-}
-
-response = requests.get('https://google.com', proxies=proxies)
-print(response.status_code)
-
-"""
+import os
 from openai import OpenAI
+
+os.environ['http_proxy'] = 'http://10.11.171.154:1234'
+os.environ['https_proxy'] = 'http://10.11.171.154:1234'
+
+
 
 client = OpenAI()
 
@@ -46,4 +41,3 @@ while True:
         if chunk.choices[0].delta.content is not None:
             print(chunk.choices[0].delta.content, end="")
     print()
-"""

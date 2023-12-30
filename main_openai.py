@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import os
+import logging
 from queue import Queue
 import signal
 from signal import pause
@@ -29,6 +30,11 @@ device = 'default'
 button.hold_time = 1.0  # 长按时间设置为1秒
 # 退出事件
 exit_event = threading.Event()
+
+msg = [
+    {"role": "system", "content": "请使用更简洁的语句回答我的问题。"},
+    {"role": "user", "content": "你好。今天的天气针不戳！😎😎😎"}
+]
 
 """
 录音方法
@@ -84,13 +90,16 @@ def recoding():
 
     return hash_filename
 
+
 """
 播放方法
 """
 
+
 def play_result(file_path):
     song = AudioSegment.from_mp3(file_path)
     play(song)
+
 
 """
 结束录制方法
@@ -100,7 +109,7 @@ def play_result(file_path):
 def stop_recoding():
     global recording_stopped
     recording_stopped = True
-    print("button pressed.\n")
+    # print("button pressed.\n")
 
 
 """
@@ -144,8 +153,6 @@ stt api调用 (whisper)
 
 
 def stt(file_name):
-    client = OpenAI()
-
     audio_file = open(file_name, "rb")
     transcript = client.audio.transcriptions.create(
         model="whisper-1",
@@ -161,14 +168,7 @@ def stt(file_name):
 
 
 def conversation(msg):
-    client = OpenAI()
     result = ""
-    generated_text = ""
-
-    # 创建队列和线程
-    queue = Queue()
-    tts_thread = threading.Thread(target=text_to_speech, args=(queue,))
-    tts_thread.start()
 
     # 生成对话
     stream = client.chat.completions.create(
@@ -177,90 +177,58 @@ def conversation(msg):
         stream=True,
     )
 
-    print("她说：", end="")
+    print("他说：", end="")
     for chunk in stream:
         # 如果生成的文本不为空
         if chunk.choices[0].delta.content is not None:
-            generated_text += chunk.choices[0].delta.content
             result += chunk.choices[0].delta.content
-            # 检查如果生成的文本中包含句号、感叹号或问号（是否已经输出了整句话），则播放生成的文本
-            if chunk.choices[0].delta.content in ['。', '！', '？']:
-                queue.put(generated_text)  # 将文本放入队列，并输出音频
-                generated_text = ""
             print(chunk.choices[0].delta.content, end="")
 
-    # 循环结束后
-    queue.put(None)  # 发送None以停止线程
-    queue.join()  # 等待队列清空
+    print()
+    # 生成的文本转语音
+    text_to_speech(result)
 
     msg.append({"role": "assistant", "content": result})
-    print()
-
-    # 确保TTS线程已完成
-    tts_thread.join()
 
     return msg
 
 
-def text_to_speech(queue):
-    client = OpenAI()
-    while True:
-        # 从队列中获取文本
-        text = queue.get()
+def text_to_speech(text):
+    # 连接到数据源
+    response = client.audio.speech.create(
+        model="tts-1",
+        voice="onyx",
+        input=text
+    )
+    response.stream_to_file('./static/temp/temp_spoke.mp3')
 
-        if text is None:
-            break  # 如果收到None，则退出线程
-
-        # 连接到数据源
-        response = client.audio.speech.create(
-            model="tts-1",
-            voice="nova",
-            input=text
-        )
-        response.stream_to_file('./static/temp/temp_spoke.mp3')
-
-        play_result('./static/temp/temp_spoke.mp3')
-
-        queue.task_done()
-
-
+    play_result('./static/temp/temp_spoke.mp3')
 
 
 """
 主方法
 """
 if __name__ == "__main__":
+    # 设置pydub的日志级别为错误
+    logging.getLogger("pydub.converter").setLevel(logging.INFO)
     # 设置代理环境变量
-    os.environ['http_proxy'] = 'http://10.44.218.162:1234'
-    os.environ['https_proxy'] = 'http://10.44.218.162:1234'
+    os.environ['http_proxy'] = 'http://10.11.171.154:1234'
+    os.environ['https_proxy'] = 'http://10.11.171.154:1234'
 
     # 停止录制标志
     global recording_stopped
+    global client
 
-    # 按按钮结束recoding 事件
-    button.when_pressed = stop_recoding
-    # 当按钮长按时 事件
-    button.when_held = handle_long_press
-
-    # 初始化部分必要变量
-    over_result = ""
-    recording_stopped = False
-    stream = None
-
-    """
-    msg = [
-        {"role": "system",
-         "content": "你将扮演一位16岁的高中生。你没有义务帮助我，因此无需询问我需要什么帮助；你只需说出符合你目前身份的话，像个正常女高中生即可。"},
-        {"role": "user", "content": "你好。今天的天气针不戳！😎😎😎"}
-    ]
-    """
-    msg = [
-        {"role": "system", "content": ""},
-        {"role": "user", "content": "你好。今天的天气针不戳！😎😎😎"}
-    ]
+    # 初始化必要变量
+    client = OpenAI()
+    msg = conversation(msg)
 
     while True:
-        msg = conversation(msg)
+        # 按按钮结束recoding 事件
+        button.when_pressed = stop_recoding
+        # 当按钮长按时 事件
+        button.when_held = handle_long_press
+
         recording_stopped = False
         print("你说(按下按钮结束说话，长按按钮结束程序)：", end="")
         # 录制时自动生成的基于时间的哈希文件名称
@@ -274,4 +242,4 @@ if __name__ == "__main__":
         msg.append({"role": "user", "content": you_say})
         msg = conversation(msg)
 
-        pause()
+    pause()
